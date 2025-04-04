@@ -7,3 +7,4 @@ data/
 *.0
 *.mp4
 *last.pt
+runs/
