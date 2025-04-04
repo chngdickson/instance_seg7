@@ -78,11 +78,52 @@ class Infer_seg():
         cls_mask = torch.clamp(im_mask[class_indices].sum(dim=0), 0,1)
         return cls_mask
     
-    def im_mask_from_cls_n_center(self, detection_bbox,im_mask, cls=1):
-        x1,y1,x2,y2,conf,detclass = detection_bbox[:,:6].T
-        class_indices = torch.where(detclass == cls)[0]
-        cls_mask = torch.clamp(im_mask[class_indices].sum(dim=0), 0,1)
-        return cls_mask
+    def im_mask_from_center_region(self, detection_bbox, im_mask, cls=1, center_tol=200):
+        """
+        Computes a mask for detections of class `cls` within `center_tol` pixels of the image center.
+        
+        Args:
+            detection_bbox (Tensor): [N, 6] (x1, y1, x2, y2, conf, class)
+            im_mask (Tensor): [N, H, W] (binary masks per detection)
+            cls (int): Class ID to filter
+            center_tol (int): Pixel tolerance around center
+        
+        Returns:
+            Tensor: [H, W] binary mask (summed & clamped to [0, 1])
+        """
+        # Extract bbox data [N, 6] -> (x1, y1, x2, y2, conf, class)
+        x1, y1, x2, y2, conf, detclass = detection_bbox[:, :6].T  # shapes: [N]
+        H, W = im_mask.shape[1], im_mask.shape[2]
+        
+        # Compute center bounds (fixed region)
+        center_x, center_y = W // 2, H // 2
+        x_min, x_max = center_x - center_tol, center_x + center_tol
+        y_min, y_max = center_y - center_tol, center_y + center_tol
+        
+        # Find detections of class `cls` whose centers are inside the central region
+        box_centers_x = (x1 + x2) / 2  # [N]
+        box_centers_y = (y1 + y2) / 2  # [N]
+        
+        is_cls = (detclass == cls)  # [N]
+        is_in_center = (
+            (box_centers_x >= x_min) & 
+            (box_centers_x <= x_max) & 
+            (box_centers_y >= y_min) & 
+            (box_centers_y <= y_max))
+        
+        valid_indices = torch.where(is_cls & is_in_center)[0]
+        
+        if len(valid_indices) == 0:
+            return torch.zeros_like(im_mask[0]), 0 , (0,0) # No matches
+        elif len(valid_indices) > 1:
+            valid_indices = valid_indices[torch.argmax(conf[valid_indices])].unsqueeze(0)
+        else: # Valid indices is only 1
+            pass
+        # Sum all valid masks and clamp
+        cls_mask = torch.clamp(im_mask[valid_indices].sum(dim=0), 0, 1)
+        uv_center = (int(box_centers_x[valid_indices][0].detach().cpu().numpy().round()), int(box_centers_y[valid_indices][0].detach().cpu().numpy().round()))
+        return cls_mask.detach().cpu().numpy(), len(valid_indices), \
+            uv_center
 @smart_inference_mode()
 def run(
         weights=ROOT / 'yolov5s-seg.pt',  # model.pt path(s)
