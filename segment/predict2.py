@@ -76,7 +76,7 @@ class Infer_seg():
         x1,y1,x2,y2,conf,detclass = detection_bbox[:,:6].T
         class_indices = torch.where(detclass == cls)[0]
         cls_mask = torch.clamp(im_mask[class_indices].sum(dim=0), 0,1)
-        return cls_mask
+        return cls_mask.detach().cpu().numpy()
     
     def im_mask_from_center_region(self, detection_bbox, im_mask, cls=1, center_tol=200):
         """
