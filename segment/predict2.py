@@ -69,8 +69,10 @@ class Infer_seg():
             # Mask plotting ----------------------------------------------------------------------------------------
             mcolors = [colors(int(cls), True) for cls in det[:, 5]]
             im_masks = plot_masks(im[0], masks, mcolors)  # image with masks shape(imh,imw,3)
-                
-        return detection_bbox, masks
+        
+            return detection_bbox, masks, len(det)
+        else:
+            return 0, 0, 0
     
     def im_mask_from_cls(self, detection_bbox,im_mask, cls=1):
         x1,y1,x2,y2,conf,detclass = detection_bbox[:,:6].T
