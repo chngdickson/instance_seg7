@@ -1,4 +1,4 @@
-# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+
 """
 Logging utils
 """
@@ -74,11 +74,11 @@ class Loggers():
         # Messages
         if not wandb:
             prefix = colorstr('Weights & Biases: ')
-            s = f"{prefix}run 'pip install wandb' to automatically track and visualize YOLOv5 🚀 runs in Weights & Biases"
+            s = f"{prefix}run 'pip install wandb' to automatically track and visualize yoloModel runs in Weights & Biases"
             self.logger.info(s)
         if not clearml:
             prefix = colorstr('ClearML: ')
-            s = f"{prefix}run 'pip install clearml' to automatically track, visualize and remotely train YOLOv5 🚀 in ClearML"
+            s = f"{prefix}run 'pip install clearml' to automatically track, visualize and remotely train yoloModel in ClearML"
             self.logger.info(s)
 
         # TensorBoard
