@@ -114,15 +114,16 @@ class Infer_seg():
             (box_centers_y <= y_max))
         
         valid_indices = torch.where(is_cls & is_in_center)[0]
-        
-        if len(valid_indices) == 0:
+        n_valid_indices = len(valid_indices)
+        if n_valid_indices == 0:
             return torch.zeros_like(im_mask[0]), 0 , (0,0) # No matches
-        elif len(valid_indices) > 1:
+        else:
             valid_indices = valid_indices[torch.argmax(conf[valid_indices])].unsqueeze(0)
-        else: # Valid indices is only 1
-            pass
-        # Sum all valid masks and clamp
-        cls_mask = torch.clamp(im_mask[valid_indices].sum(dim=0), 0, 1)
-        uv_center = (int(box_centers_x[valid_indices][0].detach().cpu().numpy().round()), int(box_centers_y[valid_indices][0].detach().cpu().numpy().round()))
-        return cls_mask.detach().cpu().numpy(), len(valid_indices), \
-            uv_center
+            # Valid indices is only 1
+            # Sum all valid masks and clamp
+            cls_mask = torch.clamp(im_mask[valid_indices].sum(dim=0), 0, 1)
+            uv_center = (int(box_centers_x[valid_indices][0].detach().cpu().numpy().round()), int(box_centers_y[valid_indices][0].detach().cpu().numpy().round()))
+            return \
+                cls_mask.detach().cpu().numpy(),\
+                len(valid_indices), \
+                uv_center
