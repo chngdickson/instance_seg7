@@ -33,7 +33,8 @@ from utils.torch_utils import select_device, smart_inference_mode
 class Infer_seg():
     def __init__(self, weights="yolov5s-seg.pt", imgz=(640,640)):
         # Load model
-        self.device = select_device('')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.cuda = self.device.type != 'cpu'
         self.model = DetectMultiBackend(weights, device=self.device, dnn=False, fp16=False)
         stride, names, pt = self.model.stride, self.model.names, self.model.pt
         imgsz = check_img_size(imgz, s=stride)
@@ -52,7 +53,15 @@ class Infer_seg():
             pred, out = self.model(im, visualize=False)
             proto = out[1]
         with self.dt[2]:
-            pred = non_max_suppression(pred, conf_thres, iou_thres, None, False, max_det=100, nm=32)
+            # pred = non_max_suppression(pred, conf_thres, iou_thres, None, False, max_det=100, nm=32)
+            out = non_max_suppression(out,
+                                      conf_thres,
+                                      iou_thres,
+                                      labels=[],
+                                      multi_label=True,
+                                      agnostic=False,
+                                      max_det=300,
+                                      nm=32)
         
         det = pred[0]  # per image
         gn = torch.tensor(im.shape)[[1, 0, 1, 0]]  # normalization gain whwh
