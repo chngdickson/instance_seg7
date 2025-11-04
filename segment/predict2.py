@@ -33,8 +33,7 @@ from utils.torch_utils import select_device, smart_inference_mode
 class Infer_seg():
     def __init__(self, weights="yolov5s-seg.pt", imgz=(640,640)):
         # Load model
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.cuda = self.device.type != 'cpu'
+        self.device = select_device('')
         self.model = DetectMultiBackend(weights, device=self.device, dnn=False, fp16=False)
         stride, names, pt = self.model.stride, self.model.names, self.model.pt
         imgsz = check_img_size(imgz, s=stride)
@@ -54,7 +53,7 @@ class Infer_seg():
             proto = out[1]
         with self.dt[2]:
             # pred = non_max_suppression(pred, conf_thres, iou_thres, None, False, max_det=100, nm=32)
-            out = non_max_suppression(out,
+            pred = non_max_suppression(pred,
                                       conf_thres,
                                       iou_thres,
                                       labels=[],
@@ -70,6 +69,7 @@ class Infer_seg():
         
         detection_bbox = det[:, :6]
         if len(det):
+            print("N_detctions < 0")
             masks = process_mask(proto[0], det[:, 6:], det[:, :4], im.shape[2:], upsample=True)  # HWC
 
             # # Rescale boxes from img_size to im0 size
@@ -82,7 +82,48 @@ class Infer_seg():
             return detection_bbox, masks, len(det)
         else:
             return 0, 0, 0
+    def crop(self,masks, boxes):
+        """
+        "Crop" predicted masks by zeroing out everything not in the predicted bbox.
+        Vectorized by Chong (thanks Chong).
+
+        Args:
+            - masks should be a size [h, w, n] tensor of masks
+            - boxes should be a size [n, 4] tensor of bbox coords in relative point form
+        """
+
+        n, h, w = masks.shape
+        x1, y1, x2, y2 = torch.chunk(boxes[:, :, None], 4, 1)  # x1 shape(1,1,n)
+        r = torch.arange(w, device=masks.device, dtype=x1.dtype)[None, None, :]  # rows shape(1,w,1)
+        c = torch.arange(h, device=masks.device, dtype=x1.dtype)[None, :, None]  # cols shape(h,1,1)
+
+        return masks * ((r >= x1) * (r < x2) * (c >= y1) * (c < y2))
     
+    def process_mask(self,protos, masks_in, bboxes, shape, upsample=False):
+        """
+        Crop before upsample.
+        proto_out: [mask_dim, mask_h, mask_w]
+        out_masks: [n, mask_dim], n is number of masks after nms
+        bboxes: [n, 4], n is number of masks after nms
+        shape:input_image_size, (h, w)
+
+        return: h, w, n
+        """
+
+        c, mh, mw = protos.shape  # CHW
+        ih, iw = shape
+        masks = (masks_in @ protos.float().view(c, -1)).sigmoid().view(-1, mh, mw)  # CHW
+
+        downsampled_bboxes = bboxes.clone()
+        downsampled_bboxes[:, 0] *= mw / iw
+        downsampled_bboxes[:, 2] *= mw / iw
+        downsampled_bboxes[:, 3] *= mh / ih
+        downsampled_bboxes[:, 1] *= mh / ih
+
+        masks = self.crop(masks, downsampled_bboxes)  # CHW
+        if upsample:
+            masks = F.interpolate(masks[None], shape, mode='bilinear', align_corners=False)[0]  # CHW
+        return masks.gt_(0.5)
     def im_mask_from_cls(self, detection_bbox,im_mask, cls=1):
         x1,y1,x2,y2,conf,detclass = detection_bbox[:,:6].T
         class_indices = torch.where(detclass == cls)[0]
