@@ -238,7 +238,7 @@ class Detectv7():
         model.warmup(imgsz=(1 if pt else batch_size, 3, imgsz, imgsz))  # warmup
         dataloader = create_dataloader(
             source, imgsz, batch_size, stride, single_cls=False, pad=0.0, rect=True, 
-            workers=int(os.cpu_count()), overlap_mask=False, mask_downsample_ratio=1
+            workers=int(os.cpu_count())-2, overlap_mask=False, mask_downsample_ratio=1
             )[0]
 
         
