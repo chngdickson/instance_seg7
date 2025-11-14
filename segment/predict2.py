@@ -127,4 +127,3 @@ class Infer_seg():
                 cls_mask.detach().cpu().numpy(),\
                 len(valid_indices), \
                 uv_center
-                
