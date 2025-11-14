@@ -1,0 +1,13 @@
+train: data/train/images
+val: data/valid/images
+test: data/test/images
+
+nc: 3
+names: ['crown', 'fullcrown', 'trunk']
+
+roboflow:
+  workspace: eqweqweq
+  project: crown-full-instance-3hr29
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/eqweqweq/crown-full-instance-3hr29/dataset/1
