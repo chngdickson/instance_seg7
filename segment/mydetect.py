@@ -65,7 +65,6 @@ def init_coco_json():
     }
     return coco_format
 
-import supervision as sv
 def bbox_area(bbox):
     """
     Calculate area of a bounding box in COCO format
@@ -103,6 +102,31 @@ def check_masks_not_zero_numpy(masks):
     non_zero_indcs = non_zero_indices_array = np.where(masks != 0)[0]
     print(f"Non, {non_zero_indcs}")
 
+def mask_to_polygons(mask: np.ndarray) -> list[np.ndarray]:
+    """
+    Converts a binary mask to a list of polygons.
+
+    Parameters:
+        mask (np.ndarray): A binary mask represented as a 2D NumPy array of
+            shape `(H, W)`, where H and W are the height and width of
+            the mask, respectively.
+
+    Returns:
+        List[np.ndarray]: A list of polygons, where each polygon is represented by a
+            NumPy array of shape `(N, 2)`, containing the `x`, `y` coordinates
+            of the points. Polygons with fewer points than `MIN_POLYGON_POINT_COUNT = 3`
+            are excluded from the output.
+    """
+    MIN_POLYGON_POINT_COUNT = 3
+    contours, _ = cv2.findContours(
+        mask.astype(np.uint8), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+    )
+    return [
+        np.squeeze(contour, axis=1)
+        for contour in contours
+        if contour.shape[0] >= MIN_POLYGON_POINT_COUNT
+    ]
+    
 def add_coco_annotation(predn, coco_data, path, class_map, pred_masks):
     """
     Save one JSON result {id: int(N_labels), "image_id": int(img_id), "category_id": 18, "bbox": [258.15, 41.29, 348.26, 243.78], "score": 0.236}
@@ -110,7 +134,7 @@ def add_coco_annotation(predn, coco_data, path, class_map, pred_masks):
     # Save one JSON result {"image_id": 42, "category_id": 18, "bbox": [258.15, 41.29, 348.26, 243.78], "score": 0.236}
 
     def single_encode(mask):
-        list_of_polygons = sv.mask_to_polygons(mask)
+        list_of_polygons = mask_to_polygons(mask)
         return list_of_polygons
         
 
@@ -158,6 +182,7 @@ def run(
         yaml_conf,
         weights,  # model.pt 
         save_dir:Path,
+        mask_path
         batch_size=32,  # batch size
         imgsz=640,  # inference size (pixels)
         conf_thres=0.25,  # confidence threshold
@@ -167,7 +192,7 @@ def run(
         save_overlay=False,
         dnn=False,  # use OpenCV DNN for ONNX inference
         model=None,
-        dataloader=None
+        dataloader=None,
 ):
     # Init
     # Load Yaml
