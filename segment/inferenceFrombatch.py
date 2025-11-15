@@ -372,8 +372,9 @@ class Detectv7():
         # binary_mask = np.any(filtered_masks > 0, axis=2).astype(np.uint8) * 255
         image_name = Path(img_path).stem
         binary_mask = np.any(filtered_masks > 0, axis=2).astype(np.bool_) 
+        save_dir = os.path.join(self.mask_dir, f'{image_name}.bin')
         # cv2.imwrite(f"{self.mask_dir}/{image_name}.jpg", binary_mask)
-        binary_mask.tofile(f"{self.mask_dir}/{image_name}.bin")
+        binary_mask.tofile(save_dir)
         return True
 
 
