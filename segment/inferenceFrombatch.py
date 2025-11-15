@@ -344,6 +344,7 @@ class Detectv7():
 
     @threaded
     def filter_masks_by_labels(self, img_path, pred_masks, predn, keep_labels):
+        # TODO:
         # predn [x1, y1, x2, y2, conf, cls]
         H, W = pred_masks.shape[:2]
         device = predn.device
@@ -368,9 +369,11 @@ class Detectv7():
             print("Did this get called?")
             return False
         
-        binary_mask = np.any(filtered_masks > 0, axis=2).astype(np.uint8) * 255
+        # binary_mask = np.any(filtered_masks > 0, axis=2).astype(np.uint8) * 255
         image_name = Path(img_path).stem
-        cv2.imwrite(f"{self.mask_dir}/{image_name}.jpg", binary_mask)
+        binary_mask = np.any(filtered_masks > 0, axis=2).astype(np.bool_) 
+        # cv2.imwrite(f"{self.mask_dir}/{image_name}.jpg", binary_mask)
+        binary_mask.tofile(f"{self.mask_dir}/{image_name}.bin")
         return True
 
 

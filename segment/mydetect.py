@@ -65,6 +65,7 @@ def init_coco_json():
     }
     return coco_format
 
+import supervision as sv
 def bbox_area(bbox):
     """
     Calculate area of a bounding box in COCO format
@@ -134,7 +135,7 @@ def add_coco_annotation(predn, coco_data, path, class_map, pred_masks):
     # Save one JSON result {"image_id": 42, "category_id": 18, "bbox": [258.15, 41.29, 348.26, 243.78], "score": 0.236}
 
     def single_encode(mask):
-        list_of_polygons = mask_to_polygons(mask)
+        list_of_polygons = sv.mask_to_polygons(mask)
         return list_of_polygons
         
 
@@ -182,7 +183,6 @@ def run(
         yaml_conf,
         weights,  # model.pt 
         save_dir:Path,
-        mask_path
         batch_size=32,  # batch size
         imgsz=640,  # inference size (pixels)
         conf_thres=0.25,  # confidence threshold
@@ -192,7 +192,7 @@ def run(
         save_overlay=False,
         dnn=False,  # use OpenCV DNN for ONNX inference
         model=None,
-        dataloader=None,
+        dataloader=None
 ):
     # Init
     # Load Yaml
