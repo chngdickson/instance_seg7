@@ -177,7 +177,7 @@ def load_yaml(file_path):
     return data
 
 class Detectv7():
-    def __init__(self, source_img_dir, yaml_conf_dir, weights_pth, batch_size, image_size, save_mask_dir, save_overlays_dir=None, conf_thres=0.25, iou_thres=0.6, max_det=300):
+    def __init__(self, source_img_dir, yaml_conf_dir, weights_pth, batch_size, image_size, save_mask_dir, save_overlays_dir=None, conf_thres=0.25, iou_thres=0.6, max_det=300, all_labels_must_be_present=False):
         self.source_dir     = source_img_dir
         self.mask_dir       = save_mask_dir
         self.yaml_conf      = yaml_conf_dir
@@ -192,7 +192,7 @@ class Detectv7():
         save_overlay = True if save_overlays_dir is not None else False
         
         self.run(
-            source_img_dir, yaml_conf_dir, weights_pth, imgsz=image_size, batch_size=batch_size, conf_thres=conf_thres, max_det=max_det, iou_thres=iou_thres, save_overlay=save_overlay
+            source_img_dir, yaml_conf_dir, weights_pth, imgsz=image_size, batch_size=batch_size, conf_thres=conf_thres, max_det=max_det, iou_thres=iou_thres, save_overlay=save_overlay,all_labels_must_be_present=all_labels_must_be_present
             )
         
         pass
@@ -209,6 +209,7 @@ class Detectv7():
             iou_thres=0.6,  # NMS IoU threshold
             max_det=300,  # maximum detections per image
             save_overlay=False,
+            all_labels_must_be_present=False
     ):
         # Init
         # Load Yaml
@@ -316,7 +317,7 @@ class Detectv7():
                 cls_idxes = [cls_idx for cls_idx, val in names.items() if val in desired_classes]
                 pred_masks_scaled = scale_masks(
                     im[img_idx].shape[1:],pred_masks.permute(1, 2, 0).contiguous().cpu().numpy(), shape, shapes[img_idx][1])
-                self.filter_masks_by_labels(img_path, pred_masks_scaled, predn, cls_idxes)
+                self.filter_masks_by_labels(img_path, pred_masks_scaled, predn, cls_idxes, all_labels_must_be_present=all_labels_must_be_present)
 
 
     @threaded
@@ -343,7 +344,7 @@ class Detectv7():
         return
 
     @threaded
-    def filter_masks_by_labels(self, img_path, pred_masks, predn, keep_labels):
+    def filter_masks_by_labels(self, img_path, pred_masks, predn, keep_labels, all_labels_must_be_present=False):
         # TODO:
         # predn [x1, y1, x2, y2, conf, cls]
         H, W = pred_masks.shape[:2]
@@ -353,6 +354,7 @@ class Detectv7():
         cls_ids = predn[:,5]
         keep_labels_tensor = torch.tensor(keep_labels, device=device)
         bool_filter_by_cls = torch.isin(cls_ids, keep_labels_tensor)
+            
         
         # Filter by center distance
         center = torch.tensor([W/2, H/2], device=device)
@@ -362,9 +364,17 @@ class Detectv7():
         bool_filter_by_dist = (dist_from_center < tolerance)
 
         # Filter Masks by combining the bools
-        keep_masks = (bool_filter_by_cls & bool_filter_by_dist).contiguous().cpu().numpy()
-        filtered_masks = pred_masks[:, :, keep_masks]
+        keep_masks = (bool_filter_by_cls & bool_filter_by_dist)
+        keep_masks_np = keep_masks.contiguous().cpu().numpy()
+        filtered_masks = pred_masks[:, :, keep_masks_np]
         
+        
+        if all_labels_must_be_present:
+            print("Hello")
+            idx_cls = cls_ids[keep_masks.nonzero()]
+            for label in keep_labels_tensor:
+                if label not in idx_cls:
+                    return False
         if filtered_masks is None or filtered_masks.shape[2] == 0:
             print("Did this get called?")
             return False
