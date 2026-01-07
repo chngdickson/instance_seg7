@@ -370,7 +370,7 @@ class Detectv7():
         
         
         if all_labels_must_be_present:
-            print("Hello")
+            # print("Hello")
             idx_cls = cls_ids[keep_masks.nonzero()]
             for label in keep_labels_tensor:
                 if label not in idx_cls:
